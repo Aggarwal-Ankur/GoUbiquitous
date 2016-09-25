@@ -294,6 +294,8 @@ public class SunshineWatchFace extends CanvasWatchFaceService {
                 String dayDateValue = dayFormatter.format(new Date());
 
                 mDayDateTv.setText(dayDateValue);
+
+                mWeatherIv.setImageResource(Utility.getArtResourceForWeatherCondition(0));
             }else{
                 rootView.setBackgroundColor(Color.BLACK);
             }
