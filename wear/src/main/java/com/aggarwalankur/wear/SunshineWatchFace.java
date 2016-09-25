@@ -24,6 +24,7 @@ import android.content.res.Resources;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
+import android.graphics.Point;
 import android.graphics.Rect;
 import android.graphics.Typeface;
 import android.os.Bundle;
@@ -31,12 +32,21 @@ import android.os.Handler;
 import android.os.Message;
 import android.support.wearable.watchface.CanvasWatchFaceService;
 import android.support.wearable.watchface.WatchFaceStyle;
+import android.view.Display;
+import android.view.LayoutInflater;
 import android.view.SurfaceHolder;
+import android.view.View;
 import android.view.WindowInsets;
-
+import android.view.WindowManager;
+import android.widget.ImageView;
+import android.widget.RelativeLayout;
+import android.widget.TextView;
 
 import java.lang.ref.WeakReference;
+import java.text.SimpleDateFormat;
 import java.util.Calendar;
+import java.util.Date;
+import java.util.Locale;
 import java.util.TimeZone;
 import java.util.concurrent.TimeUnit;
 
@@ -107,23 +117,47 @@ public class SunshineWatchFace extends CanvasWatchFaceService {
          */
         boolean mLowBitAmbient;
 
+        private int specifiedWidth, specifiedHeight;
+        private View sunshineLayout;
+
+        private RelativeLayout rootView;
+        private final Point displaySize = new Point();
+        private TextView mHourMinTv, mSecondsTv, mDayDateTv, mTempTv;
+        private ImageView mWeatherIv;
+
+        SimpleDateFormat dayFormatter = new SimpleDateFormat("EEE, MMM dd");
+
         @Override
         public void onCreate(SurfaceHolder holder) {
             super.onCreate(holder);
+
+            Resources resources = SunshineWatchFace.this.getResources();
 
             setWatchFaceStyle(new WatchFaceStyle.Builder(SunshineWatchFace.this)
                     .setCardPeekMode(WatchFaceStyle.PEEK_MODE_VARIABLE)
                     .setBackgroundVisibility(WatchFaceStyle.BACKGROUND_VISIBILITY_INTERRUPTIVE)
                     .setShowSystemUiTime(false)
                     .build());
-            Resources resources = SunshineWatchFace.this.getResources();
-            mYOffset = resources.getDimension(R.dimen.digital_y_offset);
 
             mBackgroundPaint = new Paint();
-            mBackgroundPaint.setColor(resources.getColor(R.color.background));
+            mBackgroundPaint.setColor(resources.getColor(R.color.blue));
 
-            mTextPaint = new Paint();
-            mTextPaint = createTextPaint(resources.getColor(R.color.digital_text));
+
+            LayoutInflater inflater =
+                    (LayoutInflater) getSystemService(Context.LAYOUT_INFLATER_SERVICE);
+            sunshineLayout = inflater.inflate(R.layout.sunshine_watch_layout, null);
+
+            // Load the display spec - we'll need this later for measuring myLayout
+            Display display = ((WindowManager) getSystemService(Context.WINDOW_SERVICE))
+                    .getDefaultDisplay();
+            display.getSize(displaySize);
+
+            rootView = (RelativeLayout)sunshineLayout.findViewById(R.id.root_view);
+            mHourMinTv = (TextView) sunshineLayout.findViewById(R.id.hour_min);
+            mSecondsTv = (TextView) sunshineLayout.findViewById(R.id.seconds);
+            mDayDateTv = (TextView) sunshineLayout.findViewById(R.id.day_date);
+            mTempTv = (TextView) sunshineLayout.findViewById(R.id.temp);
+            mWeatherIv = (ImageView) sunshineLayout.findViewById(R.id.weather_img);
 
             mCalendar = Calendar.getInstance();
         }
@@ -190,7 +224,10 @@ public class SunshineWatchFace extends CanvasWatchFaceService {
             float textSize = resources.getDimension(isRound
                     ? R.dimen.digital_text_size_round : R.dimen.digital_text_size);
 
-            mTextPaint.setTextSize(textSize);
+            specifiedWidth = View.MeasureSpec.makeMeasureSpec(displaySize.x, View.MeasureSpec.EXACTLY);
+            specifiedHeight = View.MeasureSpec.makeMeasureSpec(displaySize.y, View.MeasureSpec.EXACTLY);
+
+            //mTextPaint.setTextSize(textSize);
         }
 
         @Override
@@ -213,6 +250,18 @@ public class SunshineWatchFace extends CanvasWatchFaceService {
                 if (mLowBitAmbient) {
                     mTextPaint.setAntiAlias(!inAmbientMode);
                 }
+
+                // Show/hide the seconds fields
+                if (inAmbientMode) {
+                    mSecondsTv.setVisibility(View.GONE);
+                    mDayDateTv.setVisibility(View.GONE);
+                    mWeatherIv.setVisibility(View.GONE);
+                } else {
+                    mSecondsTv.setVisibility(View.VISIBLE);
+                    mDayDateTv.setVisibility(View.VISIBLE);
+                    mWeatherIv.setVisibility(View.VISIBLE);
+                }
+
                 invalidate();
             }
 
@@ -223,23 +272,41 @@ public class SunshineWatchFace extends CanvasWatchFaceService {
 
         @Override
         public void onDraw(Canvas canvas, Rect bounds) {
+            boolean isAmbient = isInAmbientMode();
+
             // Draw the background.
-            if (isInAmbientMode()) {
+            if (isAmbient) {
                 canvas.drawColor(Color.BLACK);
             } else {
                 canvas.drawRect(0, 0, bounds.width(), bounds.height(), mBackgroundPaint);
             }
 
-            // Draw H:MM in ambient mode or H:MM:SS in interactive mode.
             long now = System.currentTimeMillis();
             mCalendar.setTimeInMillis(now);
 
-            String text = mAmbient
-                    ? String.format("%d:%02d", mCalendar.get(Calendar.HOUR),
-                    mCalendar.get(Calendar.MINUTE))
-                    : String.format("%d:%02d:%02d", mCalendar.get(Calendar.HOUR),
-                    mCalendar.get(Calendar.MINUTE), mCalendar.get(Calendar.SECOND));
-            canvas.drawText(text, mXOffset, mYOffset, mTextPaint);
+            mHourMinTv.setText(String.format(Locale.getDefault(), "%d:%02d", mCalendar.get(Calendar.HOUR),
+                    mCalendar.get(Calendar.MINUTE)));
+
+            if(!isAmbient){
+                rootView.setBackgroundColor(Color.BLUE);
+                mSecondsTv.setText(String.format(Locale.getDefault(), "%02d", mCalendar.get(Calendar.SECOND)));
+
+                String dayDateValue = dayFormatter.format(new Date());
+
+                mDayDateTv.setText(dayDateValue);
+            }else{
+                rootView.setBackgroundColor(Color.BLACK);
+            }
+
+            //Set temperature here
+            mTempTv.setText("40");
+
+            sunshineLayout.measure(specifiedWidth, specifiedHeight);
+            sunshineLayout.layout(0, 0, sunshineLayout.getMeasuredWidth(), sunshineLayout.getMeasuredHeight());
+
+            // Draw it to the Canvas
+            sunshineLayout.draw(canvas);
+
         }
 
         /**
