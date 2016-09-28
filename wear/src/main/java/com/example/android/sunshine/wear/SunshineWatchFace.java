@@ -1,20 +1,4 @@
-/*
- * Copyright (C) 2014 The Android Open Source Project
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
-package com.aggarwalankur.wear;
+package com.example.android.sunshine.wear;
 
 import android.content.BroadcastReceiver;
 import android.content.Context;
@@ -68,6 +52,8 @@ import java.util.concurrent.TimeUnit;
  * low-bit ambient mode, the text is drawn without anti-aliasing in ambient mode.
  */
 public class SunshineWatchFace extends CanvasWatchFaceService {
+    private static final String TAG = SunshineWatchFace.class.getSimpleName();
+
     private static final Typeface NORMAL_TYPEFACE =
             Typeface.create(Typeface.SANS_SERIF, Typeface.NORMAL);
 
@@ -147,6 +133,8 @@ public class SunshineWatchFace extends CanvasWatchFaceService {
         private SimpleDateFormat dayFormatter = new SimpleDateFormat("EEE, MMM dd");
         private GoogleApiClient mGoogleApiClient;
 
+        private String mTempString = "40/ 20";
+
         @Override
         public void onCreate(SurfaceHolder holder) {
             super.onCreate(holder);
@@ -160,7 +148,7 @@ public class SunshineWatchFace extends CanvasWatchFaceService {
                     .build());
 
             mBackgroundPaint = new Paint();
-            mBackgroundPaint.setColor(resources.getColor(R.color.blue));
+            mBackgroundPaint.setColor(resources.getColor(R.color.primary));
 
 
             LayoutInflater inflater =
@@ -189,11 +177,14 @@ public class SunshineWatchFace extends CanvasWatchFaceService {
 
             mGoogleApiClient.connect();
 
+            Log.d(TAG, "Trying to connect google api client");
+
         }
 
         @Override
         public void onConnected(@Nullable Bundle bundle) {
             Wearable.DataApi.addListener(mGoogleApiClient, this);
+            Log.d(TAG, "Google api client connected");
         }
 
         @Override
@@ -203,6 +194,7 @@ public class SunshineWatchFace extends CanvasWatchFaceService {
 
         @Override
         public void onDataChanged(DataEventBuffer dataEvents) {
+            Log.d(TAG, "Data changed. Trying to fetch");
             for (DataEvent event : dataEvents) {
                 if (event.getType() == DataEvent.TYPE_CHANGED) {
                     // DataItem changed
@@ -211,9 +203,12 @@ public class SunshineWatchFace extends CanvasWatchFaceService {
                         DataMap dataMap = DataMapItem.fromDataItem(item).getDataMap();
 
                         int weatherId = dataMap.getInt(WEATHER_ID_KEY);
-                        double high = dataMap.getInt(HIGH_TEMP_KEY);
-                        double low = dataMap.getInt(LOW_TEMP_KEY);
+                        double high = dataMap.getDouble(HIGH_TEMP_KEY);
+                        double low = dataMap.getDouble(LOW_TEMP_KEY);
                         Log.d("Weather Data", "Id = "+ weatherId + "  :: high ="+ high + "  ::low ="+low);
+
+                        mTempString = Utility.formatTemperature(getApplicationContext(), high) + "/ "
+                                + Utility.formatTemperature(getApplicationContext(), low);
                     }
                 } else if (event.getType() == DataEvent.TYPE_DELETED) {
                     // DataItem deleted
@@ -352,20 +347,20 @@ public class SunshineWatchFace extends CanvasWatchFaceService {
                     mCalendar.get(Calendar.MINUTE)));
 
             if(!isAmbient){
-                rootView.setBackgroundColor(Color.BLUE);
+                rootView.setBackgroundColor(getResources().getColor(R.color.primary));
                 mSecondsTv.setText(String.format(Locale.getDefault(), "%02d", mCalendar.get(Calendar.SECOND)));
 
                 String dayDateValue = dayFormatter.format(new Date());
 
                 mDayDateTv.setText(dayDateValue);
 
-                mWeatherIv.setImageResource(Utility.getArtResourceForWeatherCondition(0));
+                mWeatherIv.setImageResource(Utility.getArtResourceForWeatherCondition(800));
             }else{
                 rootView.setBackgroundColor(Color.BLACK);
             }
 
             //Set temperature here
-            mTempTv.setText("40");
+            mTempTv.setText(mTempString);
 
             sunshineLayout.measure(specifiedWidth, specifiedHeight);
             sunshineLayout.layout(0, 0, sunshineLayout.getMeasuredWidth(), sunshineLayout.getMeasuredHeight());

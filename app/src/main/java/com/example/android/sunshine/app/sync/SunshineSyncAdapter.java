@@ -69,7 +69,7 @@ public class SunshineSyncAdapter extends AbstractThreadedSyncAdapter {
     private static final String LOW_TEMP_KEY = "com.example.android.sunshine.app.LOW_TEMP";
     // Interval at which to sync with the weather, in seconds.
     // 60 seconds (1 minute) * 180 = 3 hours
-    public static final int SYNC_INTERVAL = 60 * 180;
+    public static final int SYNC_INTERVAL = 30;
     public static final int SYNC_FLEXTIME = SYNC_INTERVAL / 3;
     private static final long DAY_IN_MILLIS = 1000 * 60 * 60 * 24;
     private static final int WEATHER_NOTIFICATION_ID = 3004;
@@ -533,6 +533,7 @@ public class SunshineSyncAdapter extends AbstractThreadedSyncAdapter {
         weatherDataMapReq.getDataMap().putInt(WEATHER_ID_KEY, weatherId);
         weatherDataMapReq.getDataMap().putDouble(HIGH_TEMP_KEY, high);
         weatherDataMapReq.getDataMap().putDouble(LOW_TEMP_KEY, low);
+        weatherDataMapReq.getDataMap().putLong("Timestamp",System.currentTimeMillis());
         PutDataRequest putDataReq = weatherDataMapReq.asPutDataRequest();
         PendingResult<DataApi.DataItemResult> pendingResult =
                 Wearable.DataApi.putDataItem(mGoogleApiClient, putDataReq);
