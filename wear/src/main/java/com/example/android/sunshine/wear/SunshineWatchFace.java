@@ -113,8 +113,6 @@ public class SunshineWatchFace extends CanvasWatchFaceService {
                 invalidate();
             }
         };
-        float mXOffset;
-        float mYOffset;
 
         /**
          * Whether the display supports fewer bits for each color in ambient mode. When true, we
@@ -133,7 +131,8 @@ public class SunshineWatchFace extends CanvasWatchFaceService {
         private SimpleDateFormat dayFormatter = new SimpleDateFormat("EEE, MMM dd");
         private GoogleApiClient mGoogleApiClient;
 
-        private String mTempString = "40/ 20";
+        private String mTemperatureString = "";
+        private int mWeatherId;
 
         @Override
         public void onCreate(SurfaceHolder holder) {
@@ -207,8 +206,9 @@ public class SunshineWatchFace extends CanvasWatchFaceService {
                         double low = dataMap.getDouble(LOW_TEMP_KEY);
                         Log.d("Weather Data", "Id = "+ weatherId + "  :: high ="+ high + "  ::low ="+low);
 
-                        mTempString = Utility.formatTemperature(getApplicationContext(), high) + "/ "
+                        mTemperatureString = Utility.formatTemperature(getApplicationContext(), high) + "/ "
                                 + Utility.formatTemperature(getApplicationContext(), low);
+                        mWeatherId = weatherId;
                     }
                 } else if (event.getType() == DataEvent.TYPE_DELETED) {
                     // DataItem deleted
@@ -275,18 +275,8 @@ public class SunshineWatchFace extends CanvasWatchFaceService {
         public void onApplyWindowInsets(WindowInsets insets) {
             super.onApplyWindowInsets(insets);
 
-            // Load resources that have alternate values for round watches.
-            Resources resources = SunshineWatchFace.this.getResources();
-            boolean isRound = insets.isRound();
-            mXOffset = resources.getDimension(isRound
-                    ? R.dimen.digital_x_offset_round : R.dimen.digital_x_offset);
-            float textSize = resources.getDimension(isRound
-                    ? R.dimen.digital_text_size_round : R.dimen.digital_text_size);
-
             specifiedWidth = View.MeasureSpec.makeMeasureSpec(displaySize.x, View.MeasureSpec.EXACTLY);
             specifiedHeight = View.MeasureSpec.makeMeasureSpec(displaySize.y, View.MeasureSpec.EXACTLY);
-
-            //mTextPaint.setTextSize(textSize);
         }
 
         @Override
@@ -312,9 +302,9 @@ public class SunshineWatchFace extends CanvasWatchFaceService {
 
                 // Show/hide the seconds fields
                 if (inAmbientMode) {
-                    mSecondsTv.setVisibility(View.GONE);
-                    mDayDateTv.setVisibility(View.GONE);
-                    mWeatherIv.setVisibility(View.GONE);
+                    mSecondsTv.setVisibility(View.INVISIBLE);
+                    mDayDateTv.setVisibility(View.INVISIBLE);
+                    mWeatherIv.setVisibility(View.INVISIBLE);
                 } else {
                     mSecondsTv.setVisibility(View.VISIBLE);
                     mDayDateTv.setVisibility(View.VISIBLE);
@@ -354,13 +344,24 @@ public class SunshineWatchFace extends CanvasWatchFaceService {
 
                 mDayDateTv.setText(dayDateValue);
 
-                mWeatherIv.setImageResource(Utility.getArtResourceForWeatherCondition(800));
+                int weatherResource = Utility.getArtResourceForWeatherCondition(mWeatherId);
+                if(weatherResource <= 0){
+                    mWeatherIv.setVisibility(View.INVISIBLE);
+                }else{
+                    mWeatherIv.setVisibility(View.VISIBLE);
+                    mWeatherIv.setImageResource(weatherResource);
+                }
             }else{
                 rootView.setBackgroundColor(Color.BLACK);
             }
 
             //Set temperature here
-            mTempTv.setText(mTempString);
+            if(mTemperatureString == null || mTemperatureString.isEmpty()){
+                mTempTv.setVisibility(View.INVISIBLE);
+            }else{
+                mTempTv.setVisibility(View.VISIBLE);
+                mTempTv.setText(mTemperatureString);
+            }
 
             sunshineLayout.measure(specifiedWidth, specifiedHeight);
             sunshineLayout.layout(0, 0, sunshineLayout.getMeasuredWidth(), sunshineLayout.getMeasuredHeight());
